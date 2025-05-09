@@ -2,3 +2,25 @@
 .DS_Store
 *.safetensors
 .cursor
+
+# Log files
+*.log
+logs.txt
+log-build.txt
+
+# Repomix generated files
+repomix-output.xml
+repomix.config.json
+
+# Python
+venv/
+*/venv/
+.venv/
+*.pyc
+__pycache__/
+build/
+dist/
+*.egg-info/
+
+# VSCode
+.vscode/
