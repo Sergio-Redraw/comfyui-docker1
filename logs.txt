@@ -1,0 +1,106 @@
+Setting output directory to: /workspace/comfyui_outputs
+Setting input directory to: /workspace/comfyui_inputs
+[START] Security scan
+[DONE] Security scan
+## ComfyUI-Manager: installing dependencies done.
+** ComfyUI startup time: 2025-05-09 20:05:42.504
+** Platform: Linux
+** Python version: 3.12.10 (main, Apr  9 2025, 08:55:05) [GCC 11.4.0]
+** Python executable: /workspace/ComfyUI/venv/bin/python3
+** ComfyUI Path: /workspace/ComfyUI
+** ComfyUI Base Folder Path: /workspace/ComfyUI
+** User directory: /workspace/ComfyUI/user
+** ComfyUI-Manager config path: /workspace/ComfyUI/user/default/ComfyUI-Manager/config.ini
+** Log path: /workspace/ComfyUI/user/comfyui.log
+
+Prestartup times for custom nodes:
+   1.6 seconds: /workspace/ComfyUI/custom_nodes/ComfyUI-Manager
+
+Checkpoint files will always be loaded safely.
+Total VRAM 24210 MB, total RAM 515737 MB
+pytorch version: 2.5.1+cu121
+A matching Triton is not available, some optimizations will not be enabled
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/dist-packages/xformers/__init__.py", line 57, in _is_triton_available
+    import triton  # noqa
+    ^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/triton/__init__.py", line 8, in <module>
+    from .runtime import (
+  File "/usr/local/lib/python3.12/dist-packages/triton/runtime/__init__.py", line 1, in <module>
+    from .autotuner import (Autotuner, Config, Heuristics, autotune, heuristics)
+  File "/usr/local/lib/python3.12/dist-packages/triton/runtime/autotuner.py", line 9, in <module>
+    from ..testing import do_bench, do_bench_cudagraph
+  File "/usr/local/lib/python3.12/dist-packages/triton/testing.py", line 7, in <module>
+    from . import language as tl
+  File "/usr/local/lib/python3.12/dist-packages/triton/language/__init__.py", line 4, in <module>
+    from . import math
+  File "/usr/local/lib/python3.12/dist-packages/triton/language/math.py", line 1, in <module>
+    from . import core
+  File "/usr/local/lib/python3.12/dist-packages/triton/language/core.py", line 10, in <module>
+    from ..runtime.jit import jit
+  File "/usr/local/lib/python3.12/dist-packages/triton/runtime/jit.py", line 12, in <module>
+    from ..runtime.driver import driver
+  File "/usr/local/lib/python3.12/dist-packages/triton/runtime/driver.py", line 1, in <module>
+    from ..backends import backends
+  File "/usr/local/lib/python3.12/dist-packages/triton/backends/__init__.py", line 50, in <module>
+    backends = _discover_backends()
+               ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/triton/backends/__init__.py", line 44, in _discover_backends
+    driver = _load_module(name, os.path.join(root, name, 'driver.py'))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/triton/backends/__init__.py", line 12, in _load_module
+    spec.loader.exec_module(module)
+  File "/usr/local/lib/python3.12/dist-packages/triton/backends/amd/driver.py", line 7, in <module>
+    from triton.runtime.build import _build
+  File "/usr/local/lib/python3.12/dist-packages/triton/runtime/build.py", line 8, in <module>
+    import setuptools
+  File "/usr/lib/python3/dist-packages/setuptools/__init__.py", line 10, in <module>
+    import distutils.core
+ModuleNotFoundError: No module named 'distutils'
+xformers version: 0.0.29.post1
+Set vram state to: NORMAL_VRAM
+Device: cuda:0 NVIDIA GeForce RTX 4090 : cudaMallocAsync
+Using xformers attention
+Python version: 3.12.10 (main, Apr  9 2025, 08:55:05) [GCC 11.4.0]
+ComfyUI version: 0.3.33
+ComfyUI frontend version: 1.18.9
+[Prompt Server] web root: /workspace/ComfyUI/venv/lib/python3.12/site-packages/comfyui_frontend_package/static
+### Loading: ComfyUI-Manager (V3.31.13)
+[ComfyUI-Manager] network_mode: public
+### ComfyUI Revision: 3448 [02a1b01a] *DETACHED | Released on '2025-05-08'
+
+Import times for custom nodes:
+   0.0 seconds: /workspace/ComfyUI/custom_nodes/websocket_image_save.py
+   0.1 seconds: /workspace/ComfyUI/custom_nodes/ComfyUI-Manager
+
+Starting server
+
+Traceback (most recent call last):
+  File "/workspace/ComfyUI/main.py", line 315, in <module>
+    event_loop.run_until_complete(x)
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/workspace/ComfyUI/main.py", line 300, in start_all
+    await run(prompt_server, address=args.listen, port=args.port, verbose=not args.dont_print_server, call_on_start=call_on_start)
+  File "/workspace/ComfyUI/main.py", line 225, in run
+    await asyncio.gather(
+  File "/workspace/ComfyUI/server.py", line 852, in start_multi_address
+    await site.start()
+  File "/workspace/ComfyUI/venv/lib/python3.12/site-packages/aiohttp/web_runner.py", line 121, in start
+    self._server = await loop.create_server(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 1584, in create_server
+    raise OSError(err.errno, msg) from None
+OSError: [Errno 98] error while attempting to bind on address ('0.0.0.0', 3000): [errno 98] address already in use
+[ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/custom-node-list.json
+[ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/model-list.json
+[ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/github-stats.json
+[ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/extension-node-map.json
+[ComfyUI-Manager] default cache updated: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/alter-list.json
+Cannot connect to comfyregistry.
+FETCH DATA from: https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/custom-node-list.json[ComfyUI-Manager] Due to a network error, switching to local mode.
+=> custom-node-list.json
+=> cannot schedule new futures after shutdown
+FETCH DATA from: /workspace/ComfyUI/custom_nodes/ComfyUI-Manager/custom-node-list.json [DONE]
+[ComfyUI-Manager] All startup tasks have been completed.

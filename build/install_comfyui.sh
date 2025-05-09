@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -e
-
+set -euxo pipefail
 # Clone the repo
 git clone https://github.com/comfyanonymous/ComfyUI.git /ComfyUI
 cd /ComfyUI

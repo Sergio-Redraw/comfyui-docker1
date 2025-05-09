@@ -36,6 +36,46 @@ You can use my custom [RunPod template](
 https://runpod.io/console/deploy?template=9eqyhd7vs0&ref=2xxro4sy)
 to launch it on RunPod.
 
+## Directory Structure
+
+```tree
+.
+├── .editorconfig                # Editor configuration for consistent coding styles.
+├── .gitattributes               # Defines attributes for paths in Git (e.g., line endings).
+├── .github/                     # GitHub-specific files.
+│   └── FUNDING.yml              # Project funding information.
+├── .gitignore                   # Specifies intentionally untracked files that Git should ignore.
+├── app-manager/                 # Scripts and configuration for the Application Manager.
+│   ├── config.json              # Configuration for managed applications (e.g., ComfyUI).
+│   ├── start_comfyui.sh         # Script to start ComfyUI (likely legacy/old, now handled by post_start.sh).
+│   └── stop_comfyui.sh          # Script to stop ComfyUI.
+├── base_image_src/              # Source files for building the internalized base Docker image.
+│   ├── build_base/              # Scripts to install packages and applications in the base image.
+│   │   ├── apps.sh              # Installs applications like Jupyter, code-server, etc.
+│   │   └── packages.sh          # Installs system and Python packages for the base image.
+│   ├── code_server_base/        # Configuration and extensions for code-server in the base image.
+│   │   ├── settings.json        # Default settings for code-server.
+│   │   └── vsix/                # Placeholder for VSIX extension files for code-server.
+│   │       └── README.md        # README placeholder for VSIX files.
+│   ├── nginx_base/              # Nginx-related files for the base image.
+│   │   └── 502.html             # Custom 502 error page for Nginx.
+│   └── scripts_base/            # Utility scripts for the base image runtime.
+│       ├── fix_venv.sh          # Script to fix Python virtual environment paths.
+│       ├── manage_venv.sh       # Script to backup/restore virtual environments.
+│       └── start.sh             # Main entrypoint script for the Docker container (from the base image).
+├── docker-bake.hcl              # Docker Bake file to define build targets and arguments.
+├── Dockerfile                   # Main Dockerfile for building the ComfyUI application image, internalizing the base.
+├── LICENSE                      # Project license file (GNU General Public License v3).
+├── log-build.txt                # Log file from a Docker build process.
+├── nginx/                       # Nginx configuration specific to the ComfyUI application.
+│   └── nginx.conf               # Nginx configuration to proxy ComfyUI.
+├── post_start.sh                # Script executed after the base start.sh, responsible for starting ComfyUI.
+├── README.md                    # Project README with information on installation, usage, etc.
+└── scripts/                     # Scripts for the ComfyUI application layer.
+    ├── pre_start.sh             # Script executed by the base start.sh before post_start.sh; sets up ComfyUI in /workspace.
+    └── start_comfyui.sh         # Original script to start ComfyUI (likely legacy/old, functionality moved to pre_start.sh and post_start.sh).
+```
+
 ## Building the Docker image
 
 > [!NOTE]

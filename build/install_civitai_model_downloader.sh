@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -e
-
+set -euxo pipefail
 git clone https://github.com/ashleykleynhans/civitai-downloader.git
 cd civitai-downloader
 git checkout tags/${CIVITAI_DOWNLOADER_VERSION}

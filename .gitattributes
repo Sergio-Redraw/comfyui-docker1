@@ -1,0 +1,4 @@
+            * text=auto eol=lf
+            *.sh text eol=lf
+            *.py text eol=lf
+            # Adicione outras extensões de arquivo de texto conforme necessário

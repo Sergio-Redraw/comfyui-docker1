@@ -1,161 +1,129 @@
 #!/usr/bin/env bash
+set -euxo pipefail
 
 export PYTHONUNBUFFERED=1
-export APP="ComfyUI"
+export APP_NAME="ComfyUI" # Renamed from APP to avoid conflict if APP is used by base scripts
 
-TEMPLATE_NAME="comfyui"
-TEMPLATE_VERSION_FILE="/workspace/${APP}/template.json"
+COMFYUI_DIR="/workspace/${APP_NAME}"
+COMFYUI_VENV_DIR="${COMFYUI_DIR}/venv"
+TEMPLATE_VERSION_FILE="${COMFYUI_DIR}/template.json" # Tracks version of ComfyUI setup in workspace
 
-echo "TEMPLATE NAME: ${TEMPLATE_NAME}"
-echo "TEMPLATE VERSION: ${TEMPLATE_VERSION}"
-echo "VENV PATH: /workspace/${APP}/venv"
+LOG_DIR="/workspace/logs"
+mkdir -p "${LOG_DIR}" # Ensure logs directory exists early
 
-if [[ -e ${TEMPLATE_VERSION_FILE} ]]; then
-    EXISTING_TEMPLATE_NAME=$(jq -r '.template_name // empty' "$TEMPLATE_VERSION_FILE")
+echo "PRE-START for ${APP_NAME}"
 
-    if [[ -n "${EXISTING_TEMPLATE_NAME}" ]]; then
-        if [[ "${EXISTING_TEMPLATE_NAME}" != "${TEMPLATE_NAME}" ]]; then
-            EXISTING_VERSION="0.0.0"
+echo "Template Version (from build): ${TEMPLATE_VERSION}" # This is TEMPLATE_VERSION from base Dockerfile, usually RunPod template version
+echo "ComfyUI Version to install (from ENV): ${COMFYUI_VERSION}"
+
+echo "Torch Version to install (from ENV): ${TORCH_VERSION}"
+echo "XFormers Version to install (from ENV): ${XFORMERS_VERSION}"
+echo "Index URL for Torch/XFormers (from ENV): ${INDEX_URL}"
+
+# Function to install ComfyUI and its dependencies into the workspace
+setup_comfyui_in_workspace() {
+    echo "Setting up ComfyUI in ${COMFYUI_DIR}..."
+
+    echo "Cloning ComfyUI repository..."
+    git clone https://github.com/comfyanonymous/ComfyUI.git "${COMFYUI_DIR}"
+    cd "${COMFYUI_DIR}"
+    if [ -n "${COMFYUI_VERSION}" ]; then
+        echo "Checking out ComfyUI version: ${COMFYUI_VERSION}"
+        git checkout "${COMFYUI_VERSION}"
+    else
+        echo "Warning: COMFYUI_VERSION not set, using default branch."
+    fi
+
+    echo "Creating Python virtual environment in ${COMFYUI_VENV_DIR}..."
+    python3 -m venv --system-site-packages "${COMFYUI_VENV_DIR}"
+
+    echo "Activating venv to install ComfyUI requirements..."
+    source "${COMFYUI_VENV_DIR}/bin/activate"
+
+    echo "Installing PyTorch, torchvision, torchaudio..."
+    pip3 install --no-cache-dir torch=="${TORCH_VERSION}" torchvision torchaudio --index-url "${INDEX_URL}"
+    
+    echo "Installing xformers..."
+    pip3 install --no-cache-dir xformers=="${XFORMERS_VERSION}" --index-url "${INDEX_URL}"
+
+    echo "Installing ComfyUI requirements from requirements.txt..."
+    if [ -f "requirements.txt" ]; then
+        pip3 install --no-cache-dir -r requirements.txt
+    else
+        echo "Warning: requirements.txt not found in ${COMFYUI_DIR}"
+    fi
+
+    echo "Installing accelerate and sageattention..."
+    pip3 install --no-cache-dir accelerate sageattention
+    
+    echo "Installing specific numpy version (1.26.4)..."
+    pip3 install --no-cache-dir numpy==1.26.4
+    # pip cache purge # Consider if needed
+
+    echo "Installing ComfyUI-Manager..."
+    COMFYUI_MANAGER_DIR="${COMFYUI_DIR}/custom_nodes/ComfyUI-Manager"
+    git clone https://github.com/ltdrdata/ComfyUI-Manager.git "${COMFYUI_MANAGER_DIR}"
+    if [ -f "${COMFYUI_MANAGER_DIR}/requirements.txt" ]; then
+        pip3 install --no-cache-dir -r "${COMFYUI_MANAGER_DIR}/requirements.txt"
+    else
+        echo "Warning: requirements.txt not found in ${COMFYUI_MANAGER_DIR}"
+    fi
+
+    echo "Deactivating venv."
+    deactivate
+
+    # Save a marker or version file to indicate successful setup for this version
+    # This uses COMFYUI_VERSION from ENV, which is set from RELEASE in docker-bake.hcl by default
+    echo "{\"template_name\": \"${APP_NAME}\", \"comfyui_version\": \"${COMFYUI_VERSION}\", \"setup_timestamp\": \"$(date +%s)\"}" > "${TEMPLATE_VERSION_FILE}"
+    echo "ComfyUI setup complete in ${COMFYUI_DIR} for version ${COMFYUI_VERSION}"
+}
+
+# Check if ComfyUI is already set up for the current version
+SHOULD_SETUP_COMFYUI=true
+if [ -f "${TEMPLATE_VERSION_FILE}" ]; then
+    EXISTING_SETUP_VERSION=$(jq -r '.comfyui_version // empty' "${TEMPLATE_VERSION_FILE}")
+    echo "Found existing ComfyUI setup version in workspace: ${EXISTING_SETUP_VERSION}"
+    if [ "${EXISTING_SETUP_VERSION}" == "${COMFYUI_VERSION}" ]; then
+        if [ -d "${COMFYUI_VENV_DIR}" ]; then # Also check if venv dir exists
+             echo "ComfyUI version ${COMFYUI_VERSION} already set up in workspace. Skipping setup."
+             SHOULD_SETUP_COMFYUI=false
         else
-            EXISTING_VERSION=$(jq -r '.template_version // empty' "$TEMPLATE_VERSION_FILE")
+            echo "ComfyUI version ${COMFYUI_VERSION} marker found, but venv missing. Proceeding with setup."
         fi
     else
-        EXISTING_VERSION="0.0.0"
+        echo "ComfyUI version mismatch (found ${EXISTING_SETUP_VERSION}, want ${COMFYUI_VERSION}). Proceeding with setup."
+        # Optionally, could add logic here to remove the old COMFYUI_DIR before setting up the new one
+        # rm -rf "${COMFYUI_DIR}" # Be careful with this!
     fi
 else
-    EXISTING_VERSION="0.0.0"
+    echo "No existing ComfyUI setup version file found. Proceeding with setup."
 fi
 
-save_template_json() {
-    cat << EOF > ${TEMPLATE_VERSION_FILE}
-{
-    "template_name": "${TEMPLATE_NAME}",
-    "template_version": "${TEMPLATE_VERSION}"
-}
-EOF
-}
-
-sync_directory() {
-    local src_dir="$1"
-    local dst_dir="$2"
-    local use_compression=${3:-false}
-
-    echo "SYNC: Syncing from ${src_dir} to ${dst_dir}, please wait (this can take a few minutes)..."
-
-    # Ensure destination directory exists
-    mkdir -p "${dst_dir}"
-
-    # Check whether /workspace is fuse, overlay, or xfs
-    local workspace_fs=$(df -T /workspace | awk 'NR==2 {print $2}')
-    echo "SYNC: File system type: ${workspace_fs}"
-
-    if [ "${workspace_fs}" = "fuse" ]; then
-        if [ "$use_compression" = true ]; then
-            echo "SYNC: Using tar with zstd compression for sync"
-        else
-            echo "SYNC: Using tar without compression for sync"
-        fi
-
-        # Get total size of source directory
-        local total_size=$(du -sb "${src_dir}" | cut -f1)
-
-        # Base tar command with optimizations
-        local tar_cmd="tar --create \
-            --file=- \
-            --directory="${src_dir}" \
-            --exclude='*.pyc' \
-            --exclude='__pycache__' \
-            --exclude='*.log' \
-            --blocking-factor=64 \
-            --record-size=64K \
-            --sparse \
-            ."
-
-        # Base tar extract command
-        local tar_extract_cmd="tar --extract \
-            --file=- \
-            --directory="${dst_dir}" \
-            --blocking-factor=64 \
-            --record-size=64K \
-            --sparse"
-
-        if [ "$use_compression" = true ]; then
-            $tar_cmd | zstd -T0 -1 | pv -s ${total_size} | zstd -d -T0 | $tar_extract_cmd
-        else
-            $tar_cmd | pv -s ${total_size} | $tar_extract_cmd
-        fi
-
-    elif [ "${workspace_fs}" = "overlay" ] || [ "${workspace_fs}" = "xfs" ]; then
-        echo "SYNC: Using rsync for sync"
-        rsync -rlptDu "${src_dir}/" "${dst_dir}/"
-    else
-        echo "SYNC: Unknown filesystem type (${workspace_fs}) for /workspace, defaulting to rsync"
-        rsync -rlptDu "${src_dir}/" "${dst_dir}/"
+if [ "${SHOULD_SETUP_COMFYUI}" = true ] ; then
+    # Before setting up, check if the directory exists from a previous failed/partial setup or different version
+    if [ -d "${COMFYUI_DIR}" ]; then
+        echo "Warning: ${COMFYUI_DIR} already exists. This might be a partial setup or a different version. Re-cloning into it."
+        # A safer approach might be to rename/backup the old dir first, then clone.
+        # For now, let's assume git clone into existing dir handles things or fails gracefully if not empty and not a git repo.
+        # A more robust solution: rm -rf "${COMFYUI_DIR}" before git clone, but ensure it's the right thing to do.
     fi
-}
+    setup_comfyui_in_workspace
+fi
 
-sync_apps() {
-    # Only sync if the DISABLE_SYNC environment variable is not set
-    if [ -z "${DISABLE_SYNC}" ]; then
-        echo "SYNC: Syncing to persistent storage started"
+# The old sync_apps and fix_venvs are no longer needed here as ComfyUI is directly set up in /workspace.
 
-        # Start the timer
-        start_time=$(date +%s)
-
-        echo "SYNC: Sync 1 of 1"
-        sync_directory "/${APP}" "/workspace/${APP}"
-        save_template_json
-        echo "${VENV_PATH}" > "/workspace/${APP}/venv_path"
-
-        # End the timer and calculate the duration
-        end_time=$(date +%s)
-        duration=$((end_time - start_time))
-
-        # Convert duration to minutes and seconds
-        minutes=$((duration / 60))
-        seconds=$((duration % 60))
-
-        echo "SYNC: Syncing COMPLETE!"
-        printf "SYNC: Time taken: %d minutes, %d seconds\n" ${minutes} ${seconds}
-    fi
-}
-
-fix_venvs() {
-    echo "VENV: Fixing venv..."
-    /fix_venv.sh /ComfyUI/venv /workspace/ComfyUI/venv
-}
-
-if [ "$(printf '%s\n' "$EXISTING_VERSION" "$TEMPLATE_VERSION" | sort -V | head -n 1)" = "$EXISTING_VERSION" ]; then
-    if [ "$EXISTING_VERSION" != "$TEMPLATE_VERSION" ]; then
-        sync_apps
-        fix_venvs
-
-        # Create logs directory
-        mkdir -p /workspace/logs
-    else
-        echo "SYNC: Existing version is the same as the template version, no syncing required."
-    fi
+# Start application manager (from original pre_start.sh)
+if [ -d "/app-manager" ]; then # app-manager is installed in the image at /app-manager by install_app_manager.sh
+    echo "Starting Application Manager..."
+    cd /app-manager
+    nohup npm start &> "${LOG_DIR}/app-manager.log" &
+    echo "Application Manager started. Log: ${LOG_DIR}/app-manager.log"
 else
-    echo "SYNC: Existing version is newer than the template version, not syncing!"
+    echo "Application Manager not found at /app-manager, skipping its start."
 fi
 
-# Start application manager
-cd /app-manager
-npm start > /workspace/logs/app-manager.log 2>&1 &
+# DO NOT start ComfyUI here. post_start.sh (called by base start.sh) will handle it.
+# The original pre_start.sh had logic to call /start_comfyui.sh based on DISABLE_AUTOLAUNCH and EXTRA_ARGS.
+# That responsibility is now with post_start.sh for ComfyUI.
 
-if [[ ${DISABLE_AUTOLAUNCH} ]]
-then
-    echo "Auto launching is disabled so the applications will not be started automatically"
-    echo "You can launch them manually using the launcher scripts:"
-    echo ""
-    echo "   /start_comfyui.sh"
-else
-    ARGS=()
-
-    if [[ ${EXTRA_ARGS} ]];
-    then
-          ARGS=("${ARGS[@]}" ${EXTRA_ARGS})
-    fi
-
-    /start_comfyui.sh "${ARGS[@]}"
-fi
+echo "PRE-START script for ${APP_NAME} finished."

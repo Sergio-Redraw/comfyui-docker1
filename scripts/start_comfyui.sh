@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+set -euxo pipefail
 ARGS=("$@" --listen 0.0.0.0 --port 3001)
 
 export PYTHONUNBUFFERED=1
